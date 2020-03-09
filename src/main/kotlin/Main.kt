@@ -1,16 +1,16 @@
 import com.andreapivetta.kolor.*
 import com.jakewharton.fliptables.FlipTable
-import extensions.println
-import global.variables.desktopPath
-import global.variables.lineSeperator
+import mkl.extensions.types.println
+import mkl.global.variables.desktopPath
+import mkl.global.variables.lineSeperator
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
 import java.io.FileInputStream
 import kotlin.reflect.full.memberProperties
 
 // SETTINGS
-private val filePathSource = desktopPath + "source.xlsx"
-private val filePathMaster = desktopPath + "master.xlsx"
+private val filePathSource = desktopPath + "MC/2019-07-07_HC_Masterliste Auszug ATB.xlsx"
+private val filePathMaster = desktopPath + "MC/HC_Masterliste_latest_shyla.xlsx"
 private val startRow = 6
 private val sourceLimitRow = 1230
 private val masterLimitRow = 1337
