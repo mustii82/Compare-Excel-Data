@@ -9,11 +9,11 @@ import java.io.FileInputStream
 import kotlin.reflect.full.memberProperties
 
 // SETTINGS
-private val filePathSource = desktopPath + "MC/2019-07-07_HC_Masterliste Auszug ATB.xlsx"
-private val filePathMaster = desktopPath + "MC/HC_Masterliste_latest_shyla.xlsx"
+private var filePathBase = desktopPath + "src.xlsx"
+private var filePathChange = desktopPath + "change"
 private val startRow = 6
-private val sourceLimitRow = 1230
-private val masterLimitRow = 1337
+private val changeLimitRow = 1230
+private val baseLimitRow = 1337
 fun getIdentificator(data: Data) = data.`2firstname` + " " + data.`1surname`
 
 
@@ -34,10 +34,12 @@ fun getDataFromSheet(workbook: XSSFWorkbook, limit: Int): HashMap<String, Data> 
         val rowNumber = row.rowNum + 1
 
         if (rowNumber in startRow..limit) {
-           // println("ROW: $rowNumber")
+            // println("ROW: $rowNumber")
 
             fun printRowError(message: String) {
-                println(lineSeperator + "ERROR AT ROW: $rowNumber".black().redBackground() + "$lineSeperator$message".red())
+                println(
+                    lineSeperator + "ERROR AT ROW: $rowNumber".black().redBackground() + "$lineSeperator$message".red()
+                )
             }
 
             val data = Data(
@@ -74,7 +76,10 @@ fun getDataFromSheet(workbook: XSSFWorkbook, limit: Int): HashMap<String, Data> 
                 //data.println()
                 val id = getIdentificator(data)
                 if (dataMap.containsKey(id)) {
-                    printRowError(id + " seams to Exist already in ROW: ${rowMap[id].toString().black().redBackground()}" + lineSeperator + "This Employee is maybe included multiple times and this instance will be ignored".red())
+                    printRowError(
+                        id + " seams to Exist already in ROW: ${rowMap[id].toString().black()
+                            .redBackground()}" + lineSeperator + "This Employee is maybe included multiple times and this instance will be ignored".red()
+                    )
 
                     printCompareDataTable(
                         dataMap[id]!!,
@@ -96,54 +101,59 @@ fun getDataFromSheet(workbook: XSSFWorkbook, limit: Int): HashMap<String, Data> 
     return dataMap
 }
 
-fun main() {
+fun main(args: Array<String>) {
+
+    if (args.size == 2) {
+        filePathBase = args[0]
+        filePathChange = args[1]
+    }
 
     printOperation("START")
-    val workbookMaster = XSSFWorkbook(FileInputStream(File(filePathMaster)))
-    val workbookSource = XSSFWorkbook(FileInputStream(File(filePathSource)))
+    val workbookBase = XSSFWorkbook(FileInputStream(File(filePathBase)))
+    val workbookChange = XSSFWorkbook(FileInputStream(File(filePathChange)))
 
     printOperation("Get Data from Sheets")
-    printOperation("Get Data from MasterSheet")
-    val masterDataMap = getDataFromSheet(workbookMaster, masterLimitRow)
-    printOperation("Get Data from SourceSheet")
-    val sourceDataMap = getDataFromSheet(workbookSource, sourceLimitRow)
+    printOperation("Get Data from BaseSheet")
+    val baseDataMap = getDataFromSheet(workbookBase, baseLimitRow)
+    printOperation("Get Data from ChangedSheet")
+    val changeDataMap = getDataFromSheet(workbookChange, changeLimitRow)
 
     printOperation("Get Data from Sheets Finished")
-    println("MasterData Count: " + masterDataMap.count())
-    println("SourceData Count: " + sourceDataMap.count())
+    println("BaseData Count: " + baseDataMap.count())
+    println("ChangeData Count: " + changeDataMap.count())
 
     printOperation("Check Excel Sheets".toUpperCase())
-    printOperation("Check Master Data")
-    checkSheetData(masterDataMap)
-    printOperation("Check Source Data")
-    checkSheetData(sourceDataMap)
+    printOperation("Check Base Data")
+    checkSheetData(baseDataMap)
+    printOperation("Check Change Data")
+    checkSheetData(changeDataMap)
 
-    printOperation("Start Comparison between SourceData and MasterData")
+    printOperation("Start Comparison between BaseData and ChangeData")
     val doesntExistList = ArrayList<Data>()
     var equalCounter = 0
     var differenceCounter = 0
 
-    sourceDataMap.values.forEach { sourceData ->
-        val dataFromMaster = masterDataMap[getIdentificator(sourceData)]
+    changeDataMap.values.forEach { changeData ->
+        val dataFromBase = baseDataMap[getIdentificator(changeData)]
 
-        if (dataFromMaster == null) {
-            doesntExistList.add(sourceData)
-        } else if (sourceData == dataFromMaster) {
+        if (dataFromBase == null) {
+            doesntExistList.add(changeData)
+        } else if (changeData == dataFromBase) {
             equalCounter += 1
             //println("EQUAL")
         } else {
             differenceCounter += 1
-            printWarning("DIFFERENCES in ${getIdentificator(sourceData)}".yellow())
+            printWarning("DIFFERENCES in ${getIdentificator(changeData)}".yellow())
 
-            printDifferences(sourceData, dataFromMaster)
-            printCompareDataTable(sourceData, dataFromMaster, "SHEET", "SOURCE", "MASTER")
+            printDifferences(dataFromBase, changeData)
+            printCompareDataTable(changeData, dataFromBase, "SHEET", "CHANGE", "BASE")
 
             lineSeperator.println()
         }
     }
 
     if (doesntExistList.isNotEmpty()) {
-        printError("Following ${doesntExistList.size} SourceDataSets doesnt exist in MasterSheet")
+        printError("Following ${doesntExistList.size} SourceDataSets doesnt exist in BaseSheet")
         doesntExistList.forEach { println(getDataTable(it).red()) }
     }
 
@@ -216,17 +226,15 @@ fun printCompareDataTable(data1: Data, data2: Data, header: String, data1Title: 
 }
 
 
-fun printDifferences(sourceData: Data, masterData: Data) {
+fun printDifferences(baseData: Data, changeData: Data) {
 
     val propNames: List<String> = Data::class.memberProperties.map { it.name }
-    val masterValues: List<String> = Data::class.memberProperties.map { it.get(masterData) as String }
-    val sourceValues: List<String> = Data::class.memberProperties.map { it.get(sourceData) as String }
+    val baseValues: List<String> = Data::class.memberProperties.map { it.get(baseData) as String }
+    val changeValues: List<String> = Data::class.memberProperties.map { it.get(changeData) as String }
 
     // Print Differences Warning
     for (i in propNames.indices) {
-        val masterValue = masterValues[i]
-        val sourceValue = sourceValues[i]
-        if (masterValue != sourceValue)
+        if (baseValues[i] != changeValues[i])
             println(("There is a Difference in the Property: " + propNames[i]).red())
     }
 }
